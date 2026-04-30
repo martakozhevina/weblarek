@@ -1,7 +1,7 @@
-import { IBuyer, TPayment } from "../../../types";
+import { IBuyer, TPayment, FormErrors } from "../../types";
 
 export class BuyerModel {
-    protected _data: IBuyer = {
+    protected data: IBuyer = {
         payment: null,
         email: '',
         phone: '',
@@ -10,20 +10,20 @@ export class BuyerModel {
     
     constructor() {}
 
-    setData(field: keyof IBuyer, value: string | TPayment): void { // общ метод ждя сохр одного поля
+    setData(field: keyof IBuyer, value: string): void { // общ метод ждя сохр одного поля
         if (field === 'payment') {
-            this._data.payment = value as TPayment
+            this.data.payment = value as TPayment
         } else {
-            this._data[field] = value as string;
+            this.data[field] = value as string;
         }
     }
 
     getData(): IBuyer { //получ всех данных покупателя
-        return { ...this._data };
+        return this.data;
     }
 
     clearData(): void { //очист данных покупателя
-        this._data = {
+        this.data = {
             payment: null,
             email: '',
             phone: '',
@@ -31,19 +31,19 @@ export class BuyerModel {
         };
     }
 
-    validate(): Partial<Record<keyof IBuyer, string>> { //валидация данных покупателя, возвращает объект с ошибками
-        const errors: Partial<Record<keyof IBuyer, string>> = {};
+    validate(): FormErrors<IBuyer> { //валидация данных покупателя, возвращает объект с ошибками
+        const errors: FormErrors<IBuyer> = {};
 
-        if (!this._data.payment) {
+        if (!this.data.payment) {
             errors.payment = 'Выберите способ оплаты';
         }
-        if (!this._data.email) {
+        if (!this.data.email.trim()) {
             errors.email = 'Введите email';
         }
-        if (!this._data.phone) {
+        if (!this.data.phone.trim()) {
             errors.phone = 'Введите телефон';
         }
-        if (!this._data.address) {
+        if (!this.data.address.trim()) {
             errors.address = 'Введите адрес';
         }
 

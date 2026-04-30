@@ -5,7 +5,7 @@ export interface IApi {
     post<T extends object>(uri: string, data: object, method?: ApiPostMethods): Promise<T>;
 }
 
-export type TPayment = 'online' | 'cash' | null;
+export type TPayment = 'online' | 'cash';
 
 export interface IProduct {
   id: string;          // Уникальный идентификатор товара
@@ -17,7 +17,7 @@ export interface IProduct {
 }
 
 export interface IBuyer {
-  payment: TPayment;  // Способ оплаты (онлайн/наличные)
+  payment: TPayment | null;  // Способ оплаты (онлайн/наличные)
   email: string;      // Электронная почта
   phone: string;      // Номер телефона
   address: string;    // Адрес
@@ -40,3 +40,6 @@ export interface IOrderResult {
     id: string;        // ID созданного заказа
     total: number;     // Подтвержденная сумма заказа
 }
+
+// Тип для ошибок формы
+export type FormErrors<T> = Partial<Record<keyof T, string>>;

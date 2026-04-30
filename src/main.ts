@@ -1,9 +1,12 @@
 import './scss/styles.scss';
 
-import { CatalogModel } from './components/base/models/CatalogModel';
-import { BasketModel } from './components/base/models/BasketModel';
-import { BuyerModel } from './components/base/models/BuyerModel';
+import { CatalogModel } from './components/models/CatalogModel';
+import { BasketModel } from './components/models/BasketModel';
+import { BuyerModel } from './components/models/BuyerModel';
 import { apiProducts } from './utils/data';
+import { Api } from './components/base/Api'; // базовый класс Api
+import { ApiWebLarek } from './components/api/ApiWebLarek';
+import { API_URL } from './utils/constants';
 
 // ТЕСТ КАТАЛОГА
 const catalog = new CatalogModel();
@@ -52,10 +55,6 @@ const finalErrors = buyer.validate();
 console.log('Ошибки после полного заполнения:', Object.keys(finalErrors).length === 0 ? 'Нет ошибок' : finalErrors);
 
 // ТЕСТ API
-import { Api } from './components/base/Api'; // базовый класс Api
-import { ApiWebLarek } from './components/base/models/ApiWebLarek';
-import { API_URL } from './utils/constants';
-
 // инициализируем базовый API
 const baseApi = new Api(API_URL);
 
