@@ -2,6 +2,16 @@ import { ensureElement } from '../../utils/utils';
 import { Card } from './Card';
 import { categoryMap } from '../../utils/constants';
 
+export interface ICardPreviewData {
+    title: string;
+    image: string;
+    price: number | null;
+    category: string;
+    description: string; // Сеттер будет перенаправлять это в textElement
+    buttonText: string;
+    buttonDisabled: boolean;
+}
+
 export class CardPreview extends Card { // дочерний класс для карточки в превью товара, наследуемся от базового класса Card
     protected categoryElement: HTMLElement;
     protected imageElement: HTMLImageElement;
@@ -37,7 +47,35 @@ export class CardPreview extends Card { // дочерний класс для к
         this.setImage(this.imageElement, value, this.titleElement?.textContent);
     }
 
-    set text(value: string) {
+     // Сеттер для описания товара (Презентер передает 'description')
+    set description(value: string) {
         this.textElement.textContent = value;
+    }
+
+    // ДОБАВЛЯЕМ: Сеттер для изменения текста на кнопке («В корзину» / «Удалить»)
+    set buttonText(value: string) {
+        this.buttonElement.textContent = value;
+    }
+
+    // ДОБАВЛЯЕМ: Сеттер для блокировки кнопки (для бесценных товаров)
+    set buttonDisabled(value: boolean) {
+        this.buttonElement.disabled = value;
+    }
+
+    // ДОБАВЛЯЕМ: Переопределяем метод render, чтобы гарантировать вызов новых сеттеров
+    render(data?: Partial<ICardPreviewData>): HTMLElement {
+        if (!data) return this.container;
+
+        // Передаем базовые свойства (title, price) в родительский класс Card
+        super.render(data);
+
+        // Явно вызываем сеттеры дочернего класса
+        if (data.category) this.category = data.category;
+        if (data.image) this.image = data.image;
+        if (data.description) this.description = data.description;
+        if (data.buttonText) this.buttonText = data.buttonText;
+        if (data.buttonDisabled !== undefined) this.buttonDisabled = data.buttonDisabled;
+
+        return this.container;
     }
 }
