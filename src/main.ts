@@ -15,12 +15,15 @@ import { Header } from './components/view/Header';
 import { Gallery } from './components/view/Gallery';
 import { Modal } from './components/view/Modal';
 import { Basket } from './components/view/Basket';
-import { CardCatalog, CardPreview, CardBasket } from './components/view/Card';
-import { OrderForm, ContactsForm } from './components/view/Form';
+import { CardCatalog } from './components/view/CardCatalog';
+import { CardPreview } from './components/view/CardPreview';
+import { CardBasket } from './components/view/CardBasket';
+import { OrderForm } from './components/view/OrderForm';
+import { ContactsForm } from './components/view/ContactsForm';
 import { Success } from './components/view/Success';
 
 // интерфейсы данных
-import { IProduct, IBuyer } from './types';
+import { IProduct, IBuyer, ICardData } from './types';
 import { cloneTemplate } from './utils/utils';
 
 // 1. ИНИЦИАЛИЗАЦИЯ ИНФРАСТРУКТУРЫ, МОДЕЛЕЙ И ГЛОБАЛЬНЫХ КОМПОНЕНТОВ СТРАНИЦЫ
@@ -55,9 +58,33 @@ const modalComponent = new Modal(modalRootElement, events);
 const basketComponent = new Basket(cloneTemplate(basketTemplate), events);
 const orderFormComponent = new OrderForm(cloneTemplate(orderTemplate), events);
 const contactsFormComponent = new ContactsForm(cloneTemplate(contactsTemplate), events);
+const successElement = cloneTemplate(successTemplate);
+const successComponent = new Success(successElement, {
+    onClick: () => {
+        modalComponent.close();
+    }
+});
+
+const cardPreviewElement = cloneTemplate(cardPreviewTemplate);
+const cardPreviewComponent = new CardPreview(cardPreviewElement, {
+    onClick: () => {
+        // Получаем текущий открытый товар напрямую из модели каталога
+        const previewItem = catalogModel.getPreview();
+        if (!previewItem || previewItem.price === null) return;
+
+        // Если товар уже в корзине — удаляем, если нет — добавляем
+        if (basketModel.checkInBasket(previewItem.id)) {
+            basketModel.removeItem(previewItem.id);
+        } else {
+            basketModel.addItem(previewItem);
+        }
+        
+        // Генерируем чисто текстовое событие для обновления отображения превью
+        events.emit('preview:changed');
+    }
+});
 
 // 2. ОБРАБОТЧИКИ СОБЫТИЙ МОДЕЛЕЙ ДАННЫХ (РЕАКТИВНЫЙ РЕНДЕР)
-
 // 2.1 Изменение каталога товаров -> Рендерим витрину карточек
 
 events.on('items:changed', (data: { items: IProduct[] }) => {
@@ -78,50 +105,32 @@ events.on('items:changed', (data: { items: IProduct[] }) => {
 
 // 2.2 Изменение выбранного товара -> Открываем карточку в модальном окне (Превью)
 
-events.on('preview:changed', (data: { item: IProduct }) => {
-    const item = data.item;
-    const cardElement = cloneTemplate(cardPreviewTemplate);
-    const cardComponent = new CardPreview(cardElement, {
-        onClick: () => {
-            if (basketModel.checkInBasket(item.id)) {
-                // Если товар уже в корзине — кнопка может вести на открытие корзины
-                modalComponent.close();
-                events.emit('basket:open');
-            } else {
-                // Если товара нет — добавляем
-                basketModel.addItem(item);
-                modalComponent.close();
-            }
-        }
-    });
+events.on('preview:changed', () => {
+    const previewItem = catalogModel.getPreview(); 
+    if (!previewItem) return;
 
-    // настраиваем текст кнопки в зависимости от нахождения в корзине и цены
-    const isAlreadyInBasket = basketModel.checkInBasket(item.id);
-    const buttonText = item.price === null 
+    const isAlreadyInBasket = basketModel.checkInBasket(previewItem.id);
+    
+    // Формируем текст кнопки
+    const buttonText = previewItem.price === null 
         ? 'Не продается' 
-        : (isAlreadyInBasket ? 'В корзине (Открыть)' : 'Купить');
+        : (isAlreadyInBasket ? 'Удалить' : 'В корзину');
 
-    const renderedPreview = cardComponent.render({
-        title: item.title,
-        image: CDN_URL + item.image,
-        price: item.price,
-        category: item.category,
-        description: item.description
-    });
+    // Передаем данные через метод render
+    const renderedPreview = cardPreviewComponent.render({
+        title: previewItem.title,
+        image: CDN_URL + previewItem.image,
+        price: previewItem.price,
+        category: previewItem.category,
+        description: previewItem.description,
+        buttonText,
+        buttonDisabled: previewItem.price === null 
+    } as Partial<ICardData>);
 
-    // управляем доступностью кнопки покупки (для бесценных товаров)
-    const actionButton = renderedPreview.querySelector('.card__button') as HTMLButtonElement;
-    if (actionButton && item.price === null) {
-        actionButton.disabled = true;
-    }
-    if (actionButton) {
-        actionButton.textContent = buttonText;
-    }
-
+    // Открываем модальное окно с готовым содержимым
     modalComponent.render({ content: renderedPreview });
     modalComponent.open();
 });
-
 
 // 2.3 Изменение содержимого корзины -> Обновляем Хедер и состав окна Корзины
 
@@ -149,16 +158,18 @@ events.on('basket:changed', () => {
     });
 });
 
-
 // 2.4 Изменение ошибок валидации покупателя -> Управляем доступностью кнопок в формах
 
-events.on('buyer:form-errors', (errors: Partial<IBuyer>) => {
+events.on('buyer:data-changed', (data: IBuyer) => {
+    const errors = buyerModel.validate();
     const { payment, address, email, phone } = errors;
     
     // валидация первой формы оплата и адрес
     const isOrderValid = !payment && !address;
     orderFormComponent.render({
         valid: isOrderValid,
+        payment: data.payment, // Передаем актуальный метод оплаты (сбросит или подсветит кнопку)
+        address: data.address, // Передаем значение адреса (очистит поле при сбросе модели)
         errors: Object.values({ payment, address }).filter((value): value is string => Boolean(value))
     });
 
@@ -166,10 +177,11 @@ events.on('buyer:form-errors', (errors: Partial<IBuyer>) => {
     const isContactsValid = !email && !phone;
     contactsFormComponent.render({
         valid: isContactsValid,
+        email: data.email,     // Передаем значение email (очистит поле при сбросе модели)
+        phone: data.phone,     // Передаем значение телефона (очистит поле при сбросе модели)
         errors: Object.values({ email, phone }).filter((value): value is string => Boolean(value))
     });
 });
-
 
 // 3. ОБРАБОТЧИКИ СОБЫТИЙ ИНТЕРФЕЙСА (ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ / VIEW EVENTS)
 
@@ -179,7 +191,6 @@ events.on('card:select', (item: IProduct) => {
     catalogModel.setPreview(item);
 });
 
-
 // 3.2 Открытие окна корзины (клик по кнопке в шапке)
 
 events.on('basket:open', () => {
@@ -187,17 +198,14 @@ events.on('basket:open', () => {
     modalComponent.open();
 });
 
-
 // 3.3 Переход к оформлению шага 1, кнопка "Оформить" в корзине
 
 events.on('order:open', () => {
-    buyerModel.clearData(); // Очищаем данные для нового ввода
-    orderFormComponent.clear();
+    buyerModel.clearData(); // Очищаем данные для нового ввода;
     
-    modalComponent.render({ content: orderFormComponent.render({ valid: false, errors: [] }) });
+    modalComponent.render({ content: orderFormComponent.render() }); 
     modalComponent.open();
 });
-
 
 // 3.4 Динамический ввод данных в форму заказа. Способ оплаты или Адрес
 
@@ -205,22 +213,18 @@ events.on(/^order\..*:change$/, (data: { field: keyof IBuyer; value: string }) =
     buyerModel.setData(data.field, data.value);
 });
 
-
 // 3.5 Переход к оформлению шага 2 (сабмит первой формы "Далее")
 
 events.on('order:submit', () => {
-    contactsFormComponent.clear();
-    modalComponent.render({ content: contactsFormComponent.render({ valid: false, errors: [] }) });
+    modalComponent.render({ content: contactsFormComponent.render() });
     modalComponent.open();
 });
-
 
 // 3.6 Динамический ввод данных в форму контактов (Email или Телефон)
 
 events.on(/^contacts\..*:change$/, (data: { field: keyof IBuyer; value: string }) => {
     buyerModel.setData(data.field, data.value);
 });
-
 
 // 3.7 Финальная отправка заказа (сабмит второй формы "Оплатить")
 
@@ -234,15 +238,6 @@ events.on('contacts:submit', () => {
     // отправляем сформированный заказ на сервер через API
     api.postOrder(orderData)
         .then((result) => {
-            // Инициализируем компонент успеха
-            const successElement = cloneTemplate(successTemplate);
-            const successComponent = new Success(successElement, {
-                onClick: () => {
-                    modalComponent.close();
-                }
-            });
-
-            // рендерим окно успеха с итоговой суммой покупки
             modalComponent.render({
                 content: successComponent.render({ total: result.total })
             });
@@ -255,7 +250,6 @@ events.on('contacts:submit', () => {
             console.error('Критическая ошибка оформления заказа:', err);
         });
 });
-
 
 // 4. СТАРТ ПРИЛОЖЕНИЯ (ЗАГРУЗКА ДАННЫХ С СЕРВЕРА)
 

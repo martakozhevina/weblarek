@@ -41,5 +41,10 @@ export interface IOrderResult {
     total: number;     // Подтвержденная сумма заказа
 }
 
+export interface ICardData extends IProduct {
+    buttonText?: string;
+    buttonDisabled?: boolean;
+}
+
 // Тип для ошибок формы
 export type FormErrors<T> = Partial<Record<keyof T, string>>;

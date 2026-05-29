@@ -17,8 +17,7 @@ export class BuyerModel {
         } else {
             this.data[field] = value as string;
         }
-        const errors = this.validate(); // при каждом изменении данных выполняем валидацию и сохраняем результат
-        this.events.emit('buyer:form-errors', errors); // уведомляем презентер об изменении данных покупателя и передаем результат валидации для управления состоянием формы
+        this.events.emit('buyer:data-changed', this.data);  // уведомляем презентер об изменении данных покупателя и передаем результат валидации для управления состоянием формы
     }
 
     getData(): IBuyer { //получ всех данных покупателя
@@ -32,7 +31,7 @@ export class BuyerModel {
             phone: '',
             address: ''
         };
-        this.events.emit('buyer:form-errors', {}); // уведомляем презентер об изменении данных покупателя и передаем пустой объект ошибок для сброса состояния формы
+        this.events.emit('buyer:data-changed', this.data); // уведомляем презентер об изменении данных покупателя и передаем пустой объект ошибок для сброса состояния формы
     }
 
     validate(): FormErrors<IBuyer> { //валидация данных покупателя, возвращает объект с ошибками

@@ -25,30 +25,23 @@ export class Basket extends Component<IBasketView> { // класс для ото
         this.buttonElement = ensureElement<HTMLButtonElement>('.basket__button', this.container);
 
         // устанавливаем слушатель в конструкторе
-            this.buttonElement.addEventListener('click', () => {
-                this.events.emit('order:open'); // сигнал Презентеру открыть первую форму заказа
-            });
+        this.buttonElement.addEventListener('click', () => {
+            this.events.emit('order:open'); // сигнал Презентеру открыть первую форму заказа
+        });
 
         // по умолчанию, пока данных нет, корзина считается пустой
         this.items = [];
     }
 
-    set items(items: HTMLElement[]) { // сеттер для отображения товаров в корзине, который будет вызываться презентером при изменении данных в модели
-        if (this.listElement) {
-            if (items.length > 0) {
-                // если товары есть, вставляем их в разметку
-                this.listElement.replaceChildren(...items);
-                this.buttonElement.disabled = false; // разблокируем кнопку "Оформить"
-            } else {
-                // если корзина пуста, выводим лаконичный текст-заглушку
-                const placeholder = document.createElement('p');
-                placeholder.textContent = 'Корзина пуста';
-                placeholder.style.padding = '20px';
-                placeholder.style.textAlign = 'center';
-                
-                this.listElement.replaceChildren(placeholder);
-                this.buttonElement.disabled = true; // блокируем кнопку "Оформить"
-            }
+    set items(items: HTMLElement[]) {
+        if (items.length > 0) {
+            this.listElement.replaceChildren(...items);
+            this.buttonElement.disabled = false; // Устанавливаем кнопку в активное состояние
+        } else {
+            // Если в стартере под пустую корзину заложен тег в самом шаблоне, 
+            // то очищаем список и блокируем кнопку.
+            this.listElement.replaceChildren();
+            this.buttonElement.disabled = true;
         }
     }
 
